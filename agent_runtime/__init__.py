@@ -7,11 +7,12 @@ from pathlib import Path
 from .context import RuntimeContext
 from .engine import AgentEngine
 from .session import Session
-from .tools import EchoTool, FileFindTool, FileReadTool
+from .tools import EchoTool, FileEditTool, FileFindTool, FileReadTool
 
 
 _TOOL_MAP = {
     "echo": EchoTool,
+    "file_edit": FileEditTool,
     "file_read": FileReadTool,
     "file_find": FileFindTool,
 }
