@@ -27,33 +27,30 @@ This project intentionally does not try to be a full platform. It does not curre
 
 ## Setup
 
-### 1. Create and activate a virtual environment
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/amrhosni2020/allam_claude_system
 cd allam_claude_system
-python3 -m venv .venv
-source .venv/bin/activate
+pip install -e .
 ```
 
-### 2. Install dependencies
+### 2. Set your Gemini API key
 
 ```bash
-pip install --upgrade pip
-pip install -e ".[dev]"
+export GEMINI_API_KEY="your_key_here"
 ```
 
-### 3. Configure the Gemini API key
+Add that line to your `~/.zshrc` or `~/.bashrc` to make it permanent.
 
-If you want to run the Gemini-backed chat host, copy the example environment file:
-
-```bash
-cp .env.example .env
-```
-
-Then export the key in your shell:
+### 3. Use from any project folder
 
 ```bash
-export GEMINI_API_KEY="your_real_key_here"
+cd /any/project/on/your/machine
+agent "find all Python files"
+agent "read file: src/main.py"
+agent "run: pytest"
+agent "find files named config"
 ```
 
 ## Running Tests

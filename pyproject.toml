@@ -15,6 +15,9 @@ dependencies = [
   "google-genai",
 ]
 
+[project.scripts]
+agent = "agent_runtime.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
