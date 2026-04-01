@@ -30,7 +30,7 @@ This project intentionally does not try to be a full platform. It does not curre
 ### 1. Create and activate a virtual environment
 
 ```bash
-cd /path/to/allam_claude_system
+cd allam_claude_system
 python3 -m venv .venv
 source .venv/bin/activate
 ```
@@ -59,7 +59,7 @@ export GEMINI_API_KEY="your_real_key_here"
 ## Running Tests
 
 ```bash
-cd /path/to/allam_claude_system
+cd allam_claude_system
 pytest
 ```
 
@@ -68,7 +68,7 @@ The test suite stays local. The Gemini adapter tests validate prompt and respons
 ## Running The Demo
 
 ```bash
-cd /path/to/allam_claude_system
+cd allam_claude_system
 python3 demo.py --workspace .
 ```
 
@@ -79,14 +79,14 @@ This runs a small proof-of-life flow using the fake model client.
 Use the current folder as the workspace:
 
 ```bash
-cd /path/to/allam_claude_system
+cd allam_claude_system
 python3 chat.py --workspace . --model gemini-2.5-flash
 ```
 
 Use some other project folder as the workspace:
 
 ```bash
-cd /path/to/allam_claude_system
+cd allam_claude_system
 python3 chat.py --workspace /path/to/your/project --model gemini-2.5-flash
 ```
 
@@ -159,6 +159,26 @@ This is a practical local integration, not a full native multi-turn function-res
 - `agent_runtime.context`: workspace, runtime state, and callbacks
 - `chat.py`: interactive terminal chat host
 - `demo.py`: fake-model proof-of-life demo
+
+## Using as a Library
+
+```python
+from agent_runtime import create_engine
+
+engine = create_engine(
+    workspace="/path/to/your/project",
+    tools=["file_read", "file_find"],
+)
+
+result = engine.submit_user_turn("Find all Python files and summarise the project")
+
+print(result.stop_reason)         # "completed"
+print(result.iterations)          # number of model turns taken
+for msg in result.assistant_messages:
+    for block in msg.blocks:
+        if block.type == "text":
+            print(block.data["text"])
+```
 
 ## Status
 
