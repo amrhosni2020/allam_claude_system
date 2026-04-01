@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-runtime-python"
+version = "0.1.0"
+description = "Local-first Python agent runtime scaffold"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Allam" }
+]
+dependencies = [
+  "google-genai",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[tool.setuptools]
+packages = ["agent_runtime", "agent_runtime.tools", "agent_runtime.permissions"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

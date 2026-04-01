@@ -1,0 +1,55 @@
+"""File read tool scaffold."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from ..context import RuntimeContext
+from ..messages import ContentBlock, make_tool_result_block
+from .base import ToolResult, ValidationResult
+
+
+@dataclass
+class FileReadTool:
+    """Reads text files into the runtime."""
+
+    name: str = "file_read"
+
+    def description(self, input_data: dict[str, object], context: RuntimeContext) -> str:
+        """Return a short description for permission and UI surfaces."""
+        return "Read a file from the local workspace"
+
+    def validate_input(self, input_data: dict[str, object], context: RuntimeContext) -> ValidationResult:
+        """Validate file read input."""
+        # TODO: Validate absolute/relative path policy and read limits.
+        return ValidationResult(result=True)
+
+    def check_permissions(self, input_data: dict[str, object], context: RuntimeContext) -> object:
+        """Run file read permission checks."""
+        # TODO: Delegate to permission engine with file-specific path matching.
+        raise NotImplementedError
+
+    def is_concurrency_safe(self, input_data: dict[str, object]) -> bool:
+        """Reads may run in parallel."""
+        return True
+
+    def is_read_only(self, input_data: dict[str, object]) -> bool:
+        """This tool is read-only."""
+        return True
+
+    def is_destructive(self, input_data: dict[str, object]) -> bool:
+        """Reads are not destructive."""
+        return False
+
+    def interrupt_behavior(self) -> str:
+        """File reads may be cancelled."""
+        return "cancel"
+
+    def call(self, input_data: dict[str, object], context: RuntimeContext) -> ToolResult:
+        """Read file contents and update read snapshots."""
+        # TODO: Implement local file reading and read snapshot recording.
+        raise NotImplementedError
+
+    def map_result_to_message(self, result: ToolResult, tool_use_id: str) -> ContentBlock:
+        """Convert read result into a tool-result block."""
+        return make_tool_result_block(tool_use_id, self.name, str(result.data), is_error=False)

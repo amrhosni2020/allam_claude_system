@@ -1,0 +1,86 @@
+"""Minimal proof-of-life echo tool."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from ..context import RuntimeContext
+from ..messages import ContentBlock, make_tool_result_block
+from ..permissions.models import PermissionDecision
+from .base import ToolResult, ValidationResult
+
+
+@dataclass
+class EchoTool:
+    """Return the provided text unchanged."""
+
+    name: str = "echo"
+    aliases: tuple[str, ...] = ()
+
+    def is_enabled(self) -> bool:
+        """The echo tool is always enabled in the demo slice."""
+        return True
+
+    def description(self, input_data: dict[str, Any], context: RuntimeContext) -> str:
+        """Return a short human-readable description."""
+        return "Echo text back unchanged"
+
+    def validate_input(
+        self,
+        input_data: dict[str, Any],
+        context: RuntimeContext,
+    ) -> ValidationResult:
+        """Validate the minimal echo payload."""
+        text = input_data.get("text")
+        if not isinstance(text, str):
+            return ValidationResult(
+                result=False,
+                message="EchoTool requires a string 'text' field.",
+                error_code=1,
+            )
+        return ValidationResult(result=True)
+
+    def check_permissions(
+        self,
+        input_data: dict[str, Any],
+        context: RuntimeContext,
+    ) -> PermissionDecision:
+        """Return a simple allow decision for the proof-of-life tool."""
+        del input_data
+        del context
+        return PermissionDecision(
+            behavior="allow",
+            reason_type="tool",
+            reason="EchoTool is always allowed in the demo runtime.",
+        )
+
+    def is_concurrency_safe(self, input_data: dict[str, Any]) -> bool:
+        """Echo is read-only and safe to run."""
+        return True
+
+    def is_read_only(self, input_data: dict[str, Any]) -> bool:
+        """Echo does not mutate anything."""
+        return True
+
+    def is_destructive(self, input_data: dict[str, Any]) -> bool:
+        """Echo is never destructive."""
+        return False
+
+    def interrupt_behavior(self) -> str:
+        """Echo can be cancelled safely."""
+        return "cancel"
+
+    def call(
+        self,
+        input_data: dict[str, Any],
+        context: RuntimeContext,
+        progress_cb=None,
+    ) -> ToolResult:
+        """Return the text unchanged."""
+        return ToolResult(data={"text": input_data["text"]})
+
+    def map_result_to_message(self, result: ToolResult, tool_use_id: str) -> ContentBlock:
+        """Convert tool output into a tool-result block."""
+        output = result.data["text"] if isinstance(result.data, dict) else str(result.data)
+        return make_tool_result_block(tool_use_id, self.name, output, is_error=False)

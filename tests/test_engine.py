@@ -1,0 +1,129 @@
+"""End-to-end proof-of-life test for the echo tool flow."""
+
+from pathlib import Path
+
+from agent_runtime.context import RuntimeContext
+from agent_runtime.engine import AgentEngine
+from agent_runtime.model_adapter import FakeModelClient
+from agent_runtime.permissions.models import PermissionContext
+from agent_runtime.session import Session
+from agent_runtime.tools import EchoTool, FileFindTool, FileReadTool
+
+
+def test_engine_echo_flow() -> None:
+    """Engine should route a model-requested echo tool call."""
+    context = RuntimeContext()
+    context.tool_registry.register(EchoTool())
+    engine = AgentEngine(
+        session=Session(session_id="demo-session"),
+        context=context,
+        model_client=FakeModelClient(),
+    )
+
+    summary = engine.submit_user_turn("echo: hello world")
+
+    assert summary.stop_reason == "completed"
+    assert len(summary.tool_messages) == 1
+    assert len(summary.assistant_messages) == 2
+    assert engine.session.messages[0].role == "user"
+    assert engine.session.messages[1].role == "assistant"
+    assert engine.session.messages[1].blocks[0].type == "tool_use"
+    assert engine.session.messages[2].role == "tool"
+    assert engine.session.messages[2].blocks[0].data["output"] == "hello world"
+    assert engine.session.messages[3].role == "assistant"
+    assert "EchoTool returned: hello world" in engine.session.messages[3].blocks[0].data["text"]
+
+
+def test_engine_denied_tool_call_produces_error_result() -> None:
+    """Denied tool calls should still append an error tool result."""
+    context = RuntimeContext(permission_context=PermissionContext(mode="deny"))
+    context.tool_registry.register(EchoTool())
+    engine = AgentEngine(
+        session=Session(session_id="demo-session"),
+        context=context,
+        model_client=FakeModelClient(),
+    )
+
+    summary = engine.submit_user_turn("echo: blocked")
+
+    assert summary.stop_reason == "completed"
+    assert len(summary.tool_messages) == 1
+    assert summary.permission_denials
+    assert engine.session.messages[1].blocks[0].type == "tool_use"
+    assert engine.session.messages[2].blocks[0].data["is_error"] is True
+    assert "I could not complete the tool request:" in engine.session.messages[3].blocks[0].data["text"]
+    assert any("permission decision:" in line for line in summary.debug_logs)
+
+
+def test_demo_module_import_sanity() -> None:
+    """The project-level demo module should import cleanly."""
+    import demo
+
+    assert callable(demo.main)
+
+
+def test_chat_module_import_sanity() -> None:
+    """The project-level chat module should import cleanly."""
+    import chat
+
+    assert callable(chat.main)
+
+
+def test_engine_file_read_flow(tmp_path: Path) -> None:
+    """Engine should route a model-requested file_read call through the runtime."""
+    readme = tmp_path / "README.md"
+    readme.write_text("line one\nline two\n", encoding="utf-8")
+
+    context = RuntimeContext(workspace_root=tmp_path)
+    context.tool_registry.register(EchoTool())
+    context.tool_registry.register(FileReadTool())
+    engine = AgentEngine(
+        session=Session(session_id="demo-session"),
+        context=context,
+        model_client=FakeModelClient(),
+    )
+
+    summary = engine.submit_user_turn("read file: README.md")
+
+    assert summary.stop_reason == "completed"
+    assert len(summary.tool_messages) == 1
+    assert engine.session.messages[1].blocks[0].type == "tool_use"
+    assert engine.session.messages[1].blocks[0].data["name"] == "file_read"
+    output = engine.session.messages[2].blocks[0].data["output"]
+    assert output["path"] == "README.md"
+    assert output["content"] == "line one\nline two\n"
+    assert engine.session.messages[3].blocks[0].data["text"] == "Read README.md successfully. The file has 2 line(s)."
+    assert any("workspace root:" in line for line in summary.debug_logs)
+    assert any("requested file path: README.md" in line for line in summary.debug_logs)
+    assert any("file read execution: path=README.md" in line for line in summary.debug_logs)
+    assert any("tool result: tool=file_read" in line for line in summary.debug_logs)
+
+
+def test_engine_file_find_flow(tmp_path: Path) -> None:
+    """Engine should route a model-requested file_find call through the runtime."""
+    (tmp_path / "README.md").write_text("root readme\n", encoding="utf-8")
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "README.md").write_text("docs readme\n", encoding="utf-8")
+
+    context = RuntimeContext(workspace_root=tmp_path)
+    context.tool_registry.register(EchoTool())
+    context.tool_registry.register(FileFindTool())
+    context.tool_registry.register(FileReadTool())
+    engine = AgentEngine(
+        session=Session(session_id="demo-session"),
+        context=context,
+        model_client=FakeModelClient(),
+    )
+
+    summary = engine.submit_user_turn("find README files")
+
+    assert summary.stop_reason == "completed"
+    assert len(summary.tool_messages) == 1
+    assert engine.session.messages[1].blocks[0].data["name"] == "file_find"
+    output = engine.session.messages[2].blocks[0].data["output"]
+    assert output["matches"] == ["README.md", "docs/README.md"]
+    assert "Found 2 file(s): README.md, docs/README.md" in engine.session.messages[3].blocks[0].data["text"]
+    assert any("requested find query: README" in line for line in summary.debug_logs)
+    assert any("file find execution: query=README" in line for line in summary.debug_logs)
+    assert any("tool result: tool=file_find" in line for line in summary.debug_logs)

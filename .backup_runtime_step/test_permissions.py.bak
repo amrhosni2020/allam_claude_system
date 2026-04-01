@@ -1,0 +1,94 @@
+"""Tests for permission model scaffolding and tool registry basics."""
+
+from dataclasses import dataclass
+
+from agent_runtime.context import RuntimeContext
+from agent_runtime.messages import ContentBlock, make_tool_result_block
+from agent_runtime.permissions.models import DenialTrackingState, PermissionDecision
+from agent_runtime.tools.base import ToolResult, ValidationResult
+from agent_runtime.tools.registry import ToolRegistry
+
+
+def test_permission_decision_dataclass() -> None:
+    """PermissionDecision should preserve core fields."""
+    decision = PermissionDecision(
+        behavior="allow",
+        reason_type="rule",
+        reason="allowed by test",
+    )
+    assert decision.behavior == "allow"
+
+
+def test_denial_tracking_state_defaults() -> None:
+    """DenialTrackingState should expose baseline counters."""
+    state = DenialTrackingState()
+    assert state.consecutive_denials == 0
+    assert state.total_denials == 0
+
+
+@dataclass
+class DummyTool:
+    """Small registry test double."""
+
+    name: str
+    aliases: tuple[str, ...] = ()
+    enabled: bool = True
+
+    def is_enabled(self) -> bool:
+        return self.enabled
+
+    def description(self, input_data, context: RuntimeContext) -> str:
+        return "dummy"
+
+    def validate_input(self, input_data, context: RuntimeContext) -> ValidationResult:
+        return ValidationResult(result=True)
+
+    def check_permissions(self, input_data, context: RuntimeContext):
+        return None
+
+    def is_concurrency_safe(self, input_data) -> bool:
+        return True
+
+    def is_read_only(self, input_data) -> bool:
+        return True
+
+    def is_destructive(self, input_data) -> bool:
+        return False
+
+    def interrupt_behavior(self) -> str:
+        return "cancel"
+
+    def call(self, input_data, context: RuntimeContext, progress_cb=None) -> ToolResult:
+        raise NotImplementedError
+
+    def map_result_to_message(self, result: ToolResult, tool_use_id: str) -> ContentBlock:
+        return make_tool_result_block(tool_use_id, self.name, "ok", is_error=False)
+
+
+def test_registry_supports_alias_lookup() -> None:
+    """Registry should resolve aliases to the primary tool."""
+    registry = ToolRegistry()
+    tool = DummyTool(name="file_read", aliases=("read",))
+    registry.register(tool)
+    assert registry.get("read") is tool
+    assert registry.get("file_read") is tool
+
+
+def test_registry_rejects_duplicate_names() -> None:
+    """Registry should fail clearly on duplicate names."""
+    registry = ToolRegistry()
+    registry.register(DummyTool(name="file_read"))
+    try:
+        registry.register(DummyTool(name="file_read"))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Expected duplicate tool registration to raise ValueError")
+
+
+def test_registry_filters_enabled_tools() -> None:
+    """Registry should return only enabled tools."""
+    registry = ToolRegistry()
+    registry.register(DummyTool(name="a", enabled=True))
+    registry.register(DummyTool(name="b", enabled=False))
+    assert [tool.name for tool in registry.enabled_tools()] == ["a"]

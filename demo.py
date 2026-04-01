@@ -1,0 +1,70 @@
+"""Minimal runnable demo for the local-first runtime scaffold."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from agent_runtime.context import RuntimeContext
+from agent_runtime.engine import AgentEngine
+from agent_runtime.model_adapter import FakeModelClient
+from agent_runtime.session import Session
+from agent_runtime.tools import EchoTool, FileFindTool, FileReadTool
+
+
+def _print_turn(title: str, engine: AgentEngine, prompt: str) -> None:
+    """Run one prompt and print the transcript plus debug log."""
+    print(f"=== {title} ===")
+    summary = engine.submit_user_turn(prompt)
+
+    print(f"Prompt: {prompt}")
+    print(f"Stop reason: {summary.stop_reason}")
+    print(f"Iterations: {summary.iterations}")
+    print(f"Assistant messages: {len(summary.assistant_messages)}")
+    print(f"Tool messages: {len(summary.tool_messages)}")
+    print("")
+    print("Transcript:")
+    for message in engine.session.messages:
+        print(f"- {message.role} [{message.id}]")
+        for block in message.blocks:
+            print(f"  - {block.type}: {block.data}")
+    print("")
+    print("Debug log:")
+    for line in summary.debug_logs:
+        print(f"- {line}")
+    print("")
+
+
+def main() -> None:
+    """Run tiny proof-of-life turns through the runtime."""
+    parser = argparse.ArgumentParser(description="Run the local-first runtime demo.")
+    parser.add_argument(
+        "--workspace",
+        type=str,
+        default=str(Path.cwd()),
+        help="Workspace root for local tools. Defaults to the current directory.",
+    )
+    args = parser.parse_args()
+
+    workspace_root = Path(args.workspace).resolve()
+    context = RuntimeContext(debug_enabled=True, workspace_root=workspace_root)
+    context.tool_registry.register(EchoTool())
+    context.tool_registry.register(FileFindTool())
+    context.tool_registry.register(FileReadTool())
+
+    session = Session(session_id="demo-session")
+    engine = AgentEngine(
+        session=session,
+        context=context,
+        model_client=FakeModelClient(),
+    )
+
+    print(f"Workspace: {workspace_root}")
+    print("")
+    _print_turn("Echo Demo", engine, "echo: hello")
+    _print_turn("File Find Demo", engine, "find README files")
+    _print_turn("File Read Demo", engine, "read file: README.md")
+
+
+if __name__ == "__main__":
+    main()

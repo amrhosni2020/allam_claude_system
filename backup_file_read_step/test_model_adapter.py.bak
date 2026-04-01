@@ -1,0 +1,47 @@
+"""Tests for the fake model adapter."""
+
+from agent_runtime.messages import Message, make_text_block, make_tool_result_block
+from agent_runtime.model_adapter import FakeModelClient
+
+
+def test_fake_model_requests_echo_tool_for_echo_prompt() -> None:
+    """The fake model should emit a tool call for an echo request."""
+    model = FakeModelClient()
+    response = model.next_response(
+        [
+            Message(
+                id="u1",
+                role="user",
+                blocks=[make_text_block("echo: hello world")],
+            )
+        ]
+    )
+
+    assert response.assistant_text is None
+    assert len(response.tool_calls) == 1
+    assert response.tool_calls[0].name == "echo"
+    assert response.tool_calls[0].input_data == {"text": "hello world"}
+
+
+def test_fake_model_returns_final_text_after_tool_result() -> None:
+    """The fake model should answer after receiving a tool result."""
+    model = FakeModelClient()
+    response = model.next_response(
+        [
+            Message(
+                id="t1",
+                role="tool",
+                blocks=[
+                    make_tool_result_block(
+                        "tool-1",
+                        "echo",
+                        "hello world",
+                        is_error=False,
+                    )
+                ],
+            )
+        ]
+    )
+
+    assert response.tool_calls == []
+    assert response.assistant_text == "EchoTool returned: hello world"

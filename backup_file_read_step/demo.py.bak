@@ -1,0 +1,43 @@
+"""Minimal runnable demo for the local-first runtime scaffold."""
+
+from __future__ import annotations
+
+from agent_runtime.context import RuntimeContext
+from agent_runtime.engine import AgentEngine
+from agent_runtime.model_adapter import FakeModelClient
+from agent_runtime.session import Session
+from agent_runtime.tools import EchoTool
+
+
+def main() -> None:
+    """Run a tiny proof-of-life turn through the runtime."""
+    context = RuntimeContext(debug_enabled=True)
+    context.tool_registry.register(EchoTool())
+
+    session = Session(session_id="demo-session")
+    engine = AgentEngine(
+        session=session,
+        context=context,
+        model_client=FakeModelClient(),
+    )
+
+    summary = engine.submit_user_turn("echo: hello from demo.py")
+
+    print(f"Stop reason: {summary.stop_reason}")
+    print(f"Iterations: {summary.iterations}")
+    print(f"Assistant messages: {len(summary.assistant_messages)}")
+    print(f"Tool messages: {len(summary.tool_messages)}")
+    print("")
+    print("Transcript:")
+    for message in engine.session.messages:
+        print(f"- {message.role} [{message.id}]")
+        for block in message.blocks:
+            print(f"  - {block.type}: {block.data}")
+    print("")
+    print("Debug log:")
+    for line in summary.debug_logs:
+        print(f"- {line}")
+
+
+if __name__ == "__main__":
+    main()
