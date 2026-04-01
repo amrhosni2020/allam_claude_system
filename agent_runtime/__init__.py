@@ -7,7 +7,7 @@ from pathlib import Path
 from .context import RuntimeContext
 from .engine import AgentEngine
 from .session import Session
-from .tools import EchoTool, FileEditTool, FileFindTool, FileReadTool
+from .tools import EchoTool, FileEditTool, FileFindTool, FileReadTool, ShellTool
 
 
 _TOOL_MAP = {
@@ -15,6 +15,8 @@ _TOOL_MAP = {
     "file_edit": FileEditTool,
     "file_read": FileReadTool,
     "file_find": FileFindTool,
+    "shell": ShellTool,
+    "bash": ShellTool,
 }
 
 

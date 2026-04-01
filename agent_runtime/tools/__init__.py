@@ -4,5 +4,6 @@ from .echo import EchoTool
 from .file_edit import FileEditTool
 from .file_find import FileFindTool
 from .file_read import FileReadTool
+from .shell import ShellTool
 
-__all__ = ["EchoTool", "FileEditTool", "FileFindTool", "FileReadTool"]
+__all__ = ["EchoTool", "FileEditTool", "FileFindTool", "FileReadTool", "ShellTool"]
